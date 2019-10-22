@@ -2439,6 +2439,102 @@ arv_camera_gv_set_stream_options (ArvCamera *camera, ArvGvStreamOption options)
 }
 
 /**
+ * arv_camera_gv_configure_action_command:
+ * @camera: a #ArvCamera
+ * @command_name: the action command that will be configured (1-based)
+ * @device_key: a user defined 'password' that will be used to authorize action commands
+ * @group_key: a user defined group that will have to match for an action command
+ * @group_mask: a bit field that gets matched to a mask in the action command
+ *
+ * Configure a camera to accept action commands
+ *
+ * Since: 0.8.0
+ */
+
+void
+arv_camera_gv_configure_action_command (ArvCamera *camera, const char *command_name, guint32 device_key, guint32 group_key, guint32 group_mask)
+{
+	g_return_if_fail (arv_camera_is_gv_device (camera));
+
+	arv_camera_set_string (camera, "ActionSelector", command_name);
+
+	arv_camera_set_integer (camera, "ActionDeviceKey", device_key);
+	arv_camera_set_integer (camera, "ActionGroupKey", group_key);
+	arv_camera_set_integer (camera, "ActionGroupMask", group_key);
+}
+
+/**
+ * arv_camera_gv_get_available_action_commands:
+ * @camera: a #ArvCamera
+ * @n_commands: (out): number of action commands
+ *
+ * Returns: (array length=n_commands) (transfer container): a newly allocated array of strings, which must be freed using g_free().
+ *
+ * Since: 0.8.0
+ */
+
+const char **
+arv_camera_gv_get_available_action_commands (ArvCamera *camera, guint *n_commands)
+{
+	return arv_camera_get_available_enumerations_as_strings (camera, "ActionSelector", n_commands);
+}
+
+/**
+ * arv_camera_gv_issue_action_command:
+ * @device_key: a user defined 'password' that will be used to authorize action commands
+ * @group_key: a user defined group that will have to match for an action command
+ * @group_mask: a bit field that gets matched to a mask in the action command
+ * @broadcast_address: the address the action command is sent to
+ * @inet_addresses: (out): a placeholder for an array of acknowledge IP adresses
+ * @n_acknowledges: (out): a placeholder for the number of ackowledges 
+ * @error: a GError placeholder, %NULL to ignore
+ *
+ * Issue action command
+ *
+ * Returns: %TRUE if successfull
+ *
+ * Since: 0.8.0
+ */
+
+gboolean
+arv_camera_gv_issue_action_command (guint32 device_key, guint32 group_key, guint32 group_mask,
+				    GInetAddress *broadcast_address,
+				    GInetAddress **inet_addresses, guint *n_acknowledges, GError **error)
+{
+	return arv_gv_device_issue_scheduled_action_command (device_key, group_key, group_mask,
+							     0, broadcast_address, 
+							     inet_addresses, n_acknowledges, error);
+}
+
+/**
+ * arv_camera_gv_issue_scheduled_action_command:
+ * @device_key: a user defined 'password' that will be used to authorize action commands
+ * @group_key: a user defined group that will have to match for an action command
+ * @group_mask: a bit field that gets matched to a mask in the action command
+ * @timestamp_ns: action time, in nanosecond
+ * @broadcast_address: the address the action command is sent to
+ * @inet_addresses: (out): a placeholder for an array of acknowledge IP adresses
+ * @n_acknowledges: (out): a placeholder for the number of ackowledges 
+ * @error: a GError placeholder, %NULL to ignore
+ *
+ * Issue action command
+ *
+ * Returns: %TRUE if successfull
+ *
+ * Since: 0.8.0
+ */
+
+gboolean
+arv_camera_gv_issue_scheduled_action_command (guint32 device_key, guint32 group_key, guint32 group_mask,
+					      guint64 timestamp_ns, GInetAddress *broadcast_address,
+					      GInetAddress **inet_addresses, guint *n_acknowledges, GError **error)
+{
+	return arv_gv_device_issue_scheduled_action_command (device_key, group_key, group_mask,
+							     timestamp_ns, broadcast_address,
+							     inet_addresses, n_acknowledges, error);
+}
+
+/**
  * arv_camera_is_uv_device:
  * @camera: a #ArvCamera
  *
