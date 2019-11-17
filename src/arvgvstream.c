@@ -74,6 +74,12 @@ enum {
 	ARV_GV_STREAM_PROPERTY_FRAME_RETENTION
 } ArvGvStreamProperties;
 
+typedef enum {
+	ARV_GV_STREAM_PACKET_STATE_UNKNOWN,
+	ARV_GV_STREAM_PACKET_STATE_RESEND_ASKED,
+	ARV_GV_STREAM_PACKET_STATE_RECEIVED
+} ArvGvStreamPacketState;
+
 typedef struct _ArvGvStreamThreadData ArvGvStreamThreadData;
 
 typedef struct {
@@ -96,7 +102,7 @@ G_DEFINE_TYPE_WITH_CODE (ArvGvStream, arv_gv_stream, ARV_TYPE_STREAM, G_ADD_PRIV
 /* Acquisition thread */
 
 typedef struct {
-	gboolean received;
+	ArvGvStreamPacketState state;
 	guint64 time_us;
 } ArvGvStreamPacketData;
 
@@ -444,7 +450,7 @@ _missing_packet_check (ArvGvStreamThreadData *thread_data,
 		int first_missing = -1;
 
 		for (i = frame->last_valid_packet + 1; i <= packet_id; i++) {
-			if (!frame->packet_data[i].received &&
+			if (frame->packet_data[i].state != ARV_GV_STREAM_PACKET_STATE_RECEIVED &&
 			    (frame->packet_data[i].time_us == 0 ||
 			     (time_us - frame->packet_data[i].time_us > thread_data->packet_timeout_us))) {
 				if (first_missing < 0)
@@ -473,8 +479,10 @@ _missing_packet_check (ArvGvStreamThreadData *thread_data,
 
 					_send_packet_request (thread_data, frame->frame_id,
 							      first_missing, i - 1);
-					for (j = first_missing; j < i; j++)
+					for (j = first_missing; j < i; j++) {
+						frame->packet_data[j].state = ARV_GV_STREAM_PACKET_STATE_RESEND_ASKED;
 						frame->packet_data[j].time_us = time_us;
+					}
 					thread_data->n_resend_requests += (i - first_missing);
 
 					first_missing = -1;
@@ -505,8 +513,10 @@ _missing_packet_check (ArvGvStreamThreadData *thread_data,
 
 			_send_packet_request (thread_data, frame->frame_id,
 					      first_missing, i - 1);
-			for (j = first_missing; j < i; j++)
+			for (j = first_missing; j < i; j++) {
+				frame->packet_data[j].state = ARV_GV_STREAM_PACKET_STATE_RESEND_ASKED;
 				frame->packet_data[j].time_us = time_us;
+			}
 			thread_data->n_resend_requests += (i - first_missing);
 		}
 	}
@@ -684,18 +694,22 @@ _process_packet (ArvGvStreamThreadData *thread_data, const ArvGvspPacket *packet
 
 			thread_data->n_error_packets++;
 		} else if (packet_id < frame->n_packets &&
-		           frame->packet_data[packet_id].received) {
-			/* Ignore duplicate packet */
+			   (frame->packet_data[packet_id].state == ARV_GV_STREAM_PACKET_STATE_RECEIVED ||
+			    (frame->packet_data[packet_id].state == ARV_GV_STREAM_PACKET_STATE_UNKNOWN &&
+			     packet_type == ARV_GVSP_PACKET_TYPE_RESEND))) {
+
+			/* Ignore duplicate packets or unexpected resent packets */
+
 			thread_data->n_duplicated_packets++;
 			arv_gvsp_packet_debug (packet, packet_size, ARV_DEBUG_LEVEL_LOG);
 		} else {
 			if (packet_id < frame->n_packets) {
-				frame->packet_data[packet_id].received = TRUE;
+				frame->packet_data[packet_id].state = ARV_GV_STREAM_PACKET_STATE_RECEIVED;
 			}
 
 			/* Keep track of last packet of a continuous block starting from packet 0 */
 			for (i = frame->last_valid_packet + 1; i < frame->n_packets; i++)
-				if (!frame->packet_data[i].received)
+				if (frame->packet_data[i].state != ARV_GV_STREAM_PACKET_STATE_RECEIVED)
 					break;
 			frame->last_valid_packet = i - 1;
 
