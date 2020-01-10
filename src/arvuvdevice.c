@@ -80,9 +80,36 @@ G_DEFINE_TYPE_WITH_CODE (ArvUvDevice, arv_uv_device, ARV_TYPE_DEVICE, G_ADD_PRIV
 
 /* ArvUvDevice implementation */
 
+void
+arv_uv_device_fill_bulk_transfer (ArvUvDevice *uv_device,
+				  struct libusb_transfer* transfer,
+				  ArvUvEndpointType endpoint_type, unsigned char endpoint_flags,
+				  void *data, size_t size,
+				  libusb_transfer_cb_fn callback, void* callback_data,
+				  guint32 timeout_ms)
+{
+	guint8 endpoint;
+
+	g_return_if_fail (ARV_IS_UV_DEVICE (uv_device));
+	g_return_if_fail (transfer != NULL);
+	g_return_if_fail (data != NULL);
+	g_return_if_fail (size > 0);
+	g_return_if_fail (callback != NULL);
+
+	endpoint = (endpoint_type == ARV_UV_ENDPOINT_CONTROL) ? uv_device->priv->control_endpoint : uv_device->priv->data_endpoint;
+
+	libusb_fill_bulk_transfer (transfer, uv_device->priv->usb_device,
+				   endpoint | endpoint_flags,
+				   data, size,
+				   callback, callback_data,
+				   MAX (uv_device->priv->timeout_ms, timeout_ms));
+}
+
 gboolean
-arv_uv_device_bulk_transfer (ArvUvDevice *uv_device, ArvUvEndpointType endpoint_type, unsigned char endpoint_flags, void *data,
-			     size_t size, size_t *transferred_size, guint32 timeout_ms, GError **error)
+arv_uv_device_bulk_transfer (ArvUvDevice *uv_device,
+			     ArvUvEndpointType endpoint_type, unsigned char endpoint_flags,
+			     void *data, size_t size, size_t *transferred_size,
+			     guint32 timeout_ms, GError **error)
 {
 	gboolean success;
 	guint8 endpoint;
