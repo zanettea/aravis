@@ -31,11 +31,12 @@ addons:
       - python3-pip
       - python3-dev
       - gobject-introspection
+      - valgrind
     update: true
 
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install ninja intltool; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install ninja intltool valgrind; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew link --force gettext ; fi
   - sudo pip3 install --upgrade pip
   - sudo pip3 install 'setuptools==49.6.0'
