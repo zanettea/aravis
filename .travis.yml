@@ -48,3 +48,5 @@ script:
   - ninja
   - meson test --no-suite="network"
   - if [[ "$TRAVIS_OS_NAME" != "osx" ]]; then meson test --suite="network" ; fi
+  - ../tests/valgrind-memcheck --no-suite="network"
+  - if [[ "$TRAVIS_OS_NAME" != "osx" ]]; then ../tests/valgrind-memcheck --suite="network" ; fi
